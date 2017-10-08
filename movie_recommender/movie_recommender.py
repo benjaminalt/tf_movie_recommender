@@ -1,8 +1,12 @@
 #!/bin/bash
 
 import training
+import imdb_connector
+import common
+
 import argparse
 import pandas as pd
+
 
 class MovieRecommender:
     def __init__(self):
@@ -16,19 +20,24 @@ class MovieRecommender:
         """
         raise NotImplementedError()
 
+
+def train(update, input_filepath):
+    labelled_movies = pd.read_csv(input_filepath, sep=";", header=0)
+    movie_info = imdb_connector.movie_info(labelled_movies["id"].tolist())
+    feature_vectors = map(common.make_feature_vector, movie_info)
+    model = training.train(feature_vectors, labelled_movies["rating"].tolist())
+
+
 def main(args):
     if args.command == "train":
         if not args.input:
             raise ValueError("Argument '--input' required!")
-        if args.update:
-            raise NotImplementedError()
-        else:
-            labelled_inputs = pd.read_csv(args.input)
-            model = training.train(labelled_inputs)
+        train(args.update, args.input)
     elif args.command == "classify":
         raise NotImplementedError()
     else:
         raise Exception("Unknown command: {}".format(args.command))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A movie recommendation system")
