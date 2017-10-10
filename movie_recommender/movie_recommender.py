@@ -2,10 +2,6 @@
 
 import argparse
 
-import pandas as pd
-
-import common
-import training
 from database import tmdb_connector, imdb_connector
 import os
 import json
@@ -16,43 +12,52 @@ if not os.path.isdir(RESOURCES_DIR):
 
 
 class MovieRecommender:
+    """
+    Will be used to store a data preprocessor and a TensorFlow model.
+    Should be serializable for reuse.
+    Should allow command-line interaction (possible queries: Random movie I could like, predicted top X, predict rating
+        for given movie etc.)
+    """
     def __init__(self):
-        # Read TensorFlow model from file
+        # Read TensorFlow model from file if provided
         raise NotImplementedError()
 
     def classify(self, title):
         """
-        Classify a single IMDB movie into one of ten categories.
-        :return:
+        Rate a single IMDB movie (classify into one of ten categories).
+        :return: The predicted rating (between 1 and 10 (inclusive))
         """
         raise NotImplementedError()
 
 
-def train(update, database_backend="tmdb", input_filepath=None, movie_info_filepath=None):
+def train(update, database_backend="tmdb", labelled_movies_filepath=None, movie_info_filepath=None):
+    # Get movie information (title, year, cast, director, ...)
     if movie_info_filepath:
         with open(movie_info_filepath) as movie_info_file:
             movie_info = json.load(movie_info_file)
     else:
         if database_backend == "imdb":
-            labelled_movies = pd.read_csv(input_filepath, sep=";", header=0)
-            db_connector = imdb_connector.IMDbConnector(labelled_movies)
+            db_connector = imdb_connector.IMDbConnector(labelled_movies_filepath)
         else:
             db_connector = tmdb_connector.TMDbConnector(os.path.join(RESOURCES_DIR, "credentials.json"))
         movie_info = db_connector.movie_info()
         with open(os.path.join(RESOURCES_DIR, "movie_info.json"), "w+") as dump_file:
             json.dump(movie_info, dump_file)
-    feature_vectors = map(common.make_feature_vector, movie_info)
-    model = training.train(feature_vectors, labelled_movies["rating"].tolist())
+
+    # TODO: Train TensorFlow model
+    # TODO: Start interactive MovieRecommender session
+
+
+def classify():
+    raise NotImplementedError()
 
 
 def main(args):
     if args.command == "train":
-        if not args.input:
-            raise ValueError("Argument '--input' required!")
         database = "imdb" if args.database == "imdb" else "tmdb"
-        train(args.update, args.input. database)
+        train(args.update, database, args.imdb_ratings, args.load_file)
     elif args.command == "classify":
-        raise NotImplementedError()
+        classify()
     else:
         raise Exception("Unknown command: {}".format(args.command))
 
@@ -60,9 +65,12 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A movie recommendation system")
     parser.add_argument("command", type=str, help="train|classify")
-    parser.add_argument("--update", action="store_true")
+    parser.add_argument("--update", action="store_true", help="Update the model with additional data.")
     parser.add_argument("--database", type=str, help="imdb|tmdb")
-    parser.add_argument("--imdb-input", type=str, help="Path to CSV file containing movie titles and ratings (for IMDb connector")
-    parser.add_argument("--load-file", type=str, help="Path to json-formatted file containing movie information")
+    parser.add_argument("--imdb_ratings", type=str, help="Path to CSV file containing movie titles and ratings (for IMDb "
+                                                       "connector only).")
+    parser.add_argument("--load_file", type=str, help="Path to JSON-formatted file containing movie information. If "
+                                                      "this argument is provided, the movie information will not be "
+                                                      "fetched from the database, but read from the given file.")
     parser.add_argument("--recent", action="store_true")
     main(parser.parse_args())

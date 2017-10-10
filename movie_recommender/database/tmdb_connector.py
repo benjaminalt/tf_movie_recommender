@@ -5,7 +5,14 @@ import progressbar
 
 
 class TMDbConnector(object):
+    """
+    A database connector for obtaining movie information from The Movie Database (https://www.themoviedb.org/).
+    """
     def __init__(self, credentials_filepath):
+        """
+        :param credentials_filepath: Path to JSON file containing entries for keys "api_key", "username" and "password",
+        which are required for connecting to TMDb and obtaining a list of rated movies from a TMDb account.
+        """
         with open(credentials_filepath) as credentials_file:
             self.credentials = json.load(credentials_file)
         print("Connecting to TMDb database...")
@@ -29,6 +36,10 @@ class TMDbConnector(object):
         print("Done.")
 
     def movie_info(self):
+        """
+        Get relevant information about the set of rated movies.
+        :return: A list of dicts, each of which contains information (such as genres, director, year...) about a movie
+        """
         print("Fetching movie info...")
         res = []
         rated_movies = self.account.rated_movies()

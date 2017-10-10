@@ -1,22 +1,44 @@
 from __future__ import print_function
 from imdb import IMDb
 import progressbar
+import pandas as pd
 
 
 class IMDbConnector(object):
-    def __init__(self):
-        pass
-
-    def movie_info(imdb_ids):
+    """
+    A database connector for obtaining movie information from the Internet Movie Database (https://www.imdb.com/).
+    """
+    def __init__(self, labelled_movies_filepath):
         """
-        Get information about a set of movies.
-        :param imdb_ids: A list of IMDb IDs of movies
-        :return: A list containing detailed movie information about each of the given movies
+        :param labelled_movies_filepath: A CSV-formatted file. Each row corresponds to a movie. Must have columns "id"
+        and "rating", other columns are ignored.
+        """
+        self.labelled_movies = pd.read_csv(labelled_movies_filepath, sep=";", header=0)
+
+    def movie_info(self):
+        """
+        Get relevant information about the set of rated movies.
+        :return: A list of dicts, each of which contains information (such as genres, director, year...) about a movie
         """
         print("Getting movie info...")
+        imdb_ids = self.labelled_movies["id"]
+        ratings = self.labelled_movies["rating"]
         ia = IMDb()
         bar = progressbar.ProgressBar()
-        info = []
-        for movie_id in bar(imdb_ids):
-            info.append(ia.get_movie(movie_id))
-        return info
+        res = []
+        for index, movie_id in enumerate(bar(imdb_ids)):
+            info = ia.get_movie(movie_id).data
+            movie_dict = {
+                "title": info["title"],
+                "rating": ratings[index],
+                "genres": info["genre"],
+                "average_rating": info["rating"],
+                "year": info["year"],
+                "cast": [info["cast"][i].data["name"] for i in range(10 if len(info["cast"]) > 10 else len(info["cast"]))],
+                "director": info["director"][0].data["name"],
+                "producer": info["producer"][0].data["name"],
+                "composer": info["original music"][0].data["name"],
+                "writer": info["writer"][0].data["name"]
+            }
+            res.append(movie_dict)
+        return res
