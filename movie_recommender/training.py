@@ -1,6 +1,3 @@
-import imdb_connector
-
-
 def train(input_data, labels):
     """
     Train a TensorFlow model on (feature vector, label) pairs
