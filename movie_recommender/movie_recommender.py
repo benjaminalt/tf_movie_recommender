@@ -2,9 +2,12 @@
 
 import argparse
 
-from database import tmdb_connector, imdb_connector
+from db import tmdb_connector, imdb_connector
 import os
 import json
+import pandas as pd
+
+from ml.data_preprocessor import DataPreprocessor
 
 RESOURCES_DIR = os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir), "resources")
 if not os.path.isdir(RESOURCES_DIR):
@@ -34,7 +37,7 @@ def train(update, database_backend="tmdb", labelled_movies_filepath=None, movie_
     # Get movie information (title, year, cast, director, ...)
     if movie_info_filepath:
         with open(movie_info_filepath) as movie_info_file:
-            movie_info = json.load(movie_info_file)
+            movie_info = pd.DataFrame(json.load(movie_info_file))
     else:
         if database_backend == "imdb":
             db_connector = imdb_connector.IMDbConnector(labelled_movies_filepath)
@@ -42,9 +45,11 @@ def train(update, database_backend="tmdb", labelled_movies_filepath=None, movie_
             db_connector = tmdb_connector.TMDbConnector(os.path.join(RESOURCES_DIR, "credentials.json"))
         movie_info = db_connector.movie_info()
         with open(os.path.join(RESOURCES_DIR, "movie_info.json"), "w+") as dump_file:
-            json.dump(movie_info, dump_file)
+            movie_info.to_json(dump_file)
 
     # TODO: Train TensorFlow model
+    data_preprocessor = DataPreprocessor(movie_info)
+    encoded = pd.DataFrame(movie_info.apply(data_preprocessor.encode, axis=1).tolist())
     # TODO: Start interactive MovieRecommender session
 
 
@@ -54,7 +59,7 @@ def classify():
 
 def main(args):
     if args.command == "train":
-        database = "imdb" if args.database == "imdb" else "tmdb"
+        database = "imdb" if args.db == "imdb" else "tmdb"
         train(args.update, database, args.imdb_ratings, args.load_file)
     elif args.command == "classify":
         classify()
@@ -66,11 +71,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A movie recommendation system")
     parser.add_argument("command", type=str, help="train|classify")
     parser.add_argument("--update", action="store_true", help="Update the model with additional data.")
-    parser.add_argument("--database", type=str, help="imdb|tmdb")
+    parser.add_argument("--db", type=str, help="imdb|tmdb")
     parser.add_argument("--imdb_ratings", type=str, help="Path to CSV file containing movie titles and ratings (for IMDb "
                                                        "connector only).")
     parser.add_argument("--load_file", type=str, help="Path to JSON-formatted file containing movie information. If "
                                                       "this argument is provided, the movie information will not be "
-                                                      "fetched from the database, but read from the given file.")
+                                                      "fetched from the db, but read from the given file.")
     parser.add_argument("--recent", action="store_true")
     main(parser.parse_args())

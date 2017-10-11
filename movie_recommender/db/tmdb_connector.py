@@ -2,11 +2,12 @@ from __future__ import print_function
 import tmdbsimple as tmdb
 import json
 import progressbar
+import pandas as pd
 
 
 class TMDbConnector(object):
     """
-    A database connector for obtaining movie information from The Movie Database (https://www.themoviedb.org/).
+    A db connector for obtaining movie information from The Movie Database (https://www.themoviedb.org/).
     """
     def __init__(self, credentials_filepath):
         """
@@ -15,7 +16,7 @@ class TMDbConnector(object):
         """
         with open(credentials_filepath) as credentials_file:
             self.credentials = json.load(credentials_file)
-        print("Connecting to TMDb database...")
+        print("Connecting to TMDb db...")
         tmdb.API_KEY = self.credentials["api_key"]
         auth = tmdb.Authentication()
         request_token = auth.token_new()["request_token"]
@@ -38,7 +39,7 @@ class TMDbConnector(object):
     def movie_info(self):
         """
         Get relevant information about the set of rated movies.
-        :return: A list of dicts, each of which contains information (such as genres, director, year...) about a movie
+        :return: A DataFrame containing information (such as genres, director, year...) about the movie.
         """
         print("Fetching movie info...")
         res = []
@@ -53,7 +54,7 @@ class TMDbConnector(object):
             current_page = rated_movies["page"]
             if rated_movies["page"] != rated_movies["total_pages"]:
                 rated_movies = self.account.rated_movies(page=current_page+1)
-        return res
+        return pd.DataFrame(res)
 
     def extract_movie_info(self, movie):
         movie_dict = {
@@ -70,8 +71,8 @@ class TMDbConnector(object):
         }
         credits = tmdb.Movies(movie["id"]).credits()
         cast = credits["cast"]
-        if len(cast) > 10:
-            cast = cast[:10]
+        if len(cast) > 5:
+            cast = cast[:5]
         for actor in cast:
             movie_dict["cast"].append(actor["name"])
         crew = credits["crew"]

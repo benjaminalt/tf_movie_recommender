@@ -6,7 +6,7 @@ import pandas as pd
 
 class IMDbConnector(object):
     """
-    A database connector for obtaining movie information from the Internet Movie Database (https://www.imdb.com/).
+    A db connector for obtaining movie information from the Internet Movie Database (https://www.imdb.com/).
     """
     def __init__(self, labelled_movies_filepath):
         """
@@ -34,11 +34,11 @@ class IMDbConnector(object):
                 "genres": info["genre"],
                 "average_rating": info["rating"],
                 "year": info["year"],
-                "cast": [info["cast"][i].data["name"] for i in range(10 if len(info["cast"]) > 10 else len(info["cast"]))],
+                "cast": [info["cast"][i].data["name"] for i in range(5 if len(info["cast"]) > 5 else len(info["cast"]))],
                 "director": info["director"][0].data["name"],
                 "producer": info["producer"][0].data["name"],
                 "composer": info["original music"][0].data["name"],
                 "writer": info["writer"][0].data["name"]
             }
             res.append(movie_dict)
-        return res
+        return pd.DataFrame(res)
