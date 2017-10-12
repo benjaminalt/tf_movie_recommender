@@ -159,3 +159,4 @@ fabric.properties
 
 /training_data/
 /resources/
+/model_tmp/

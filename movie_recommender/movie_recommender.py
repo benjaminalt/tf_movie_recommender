@@ -6,8 +6,10 @@ from db import tmdb_connector, imdb_connector
 import os
 import json
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from ml.data_preprocessor import DataPreprocessor
+from ml.dnn import DNN
 
 RESOURCES_DIR = os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir), "resources")
 if not os.path.isdir(RESOURCES_DIR):
@@ -50,6 +52,9 @@ def train(update, database_backend="tmdb", labelled_movies_filepath=None, movie_
     # TODO: Train TensorFlow model
     data_preprocessor = DataPreprocessor(movie_info)
     encoded = pd.DataFrame(movie_info.apply(data_preprocessor.encode, axis=1).tolist())
+    df_train, df_test = train_test_split(encoded, test_size=0.1)
+    dnn = DNN()
+    dnn.train(df_train, df_test)
     # TODO: Start interactive MovieRecommender session
 
 
