@@ -39,7 +39,7 @@ class DataPreprocessor(object):
         encoded = {
             "year": self.normalize_continuous(movie["year"], self.extrema["min"].get("year"), self.extrema["max"].get("year")),
             "average_rating": self.normalize_continuous(movie["average_rating"], self.extrema["min"].get("average_rating"), self.extrema["max"].get("average_rating")),
-            "rating": self.normalize_continuous(movie["rating"], self.extrema["min"].get("rating"), self.extrema["max"].get("rating"))
+            "rating": int(movie["rating"]) - 1  # Do not normalize the rating, as it serves as a class label and must be integer-valued (for 10 classes, between 0 and 9)
         }
         for actor in self.known_values["actor"]:
             normalized = self.normalize_categorical(actor)

@@ -1,86 +1,110 @@
 #!/bin/bash
-
-import argparse
+from __future__ import print_function
 
 from db import tmdb_connector, imdb_connector
+from ml.data_preprocessor import DataPreprocessor
+from ml.dnn import DNN
+
+import cmd
 import os
 import json
 import pandas as pd
 from sklearn.model_selection import train_test_split
-
-from ml.data_preprocessor import DataPreprocessor
-from ml.dnn import DNN
 
 RESOURCES_DIR = os.path.join(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir), "resources")
 if not os.path.isdir(RESOURCES_DIR):
     os.makedirs(RESOURCES_DIR)
 
 
-class MovieRecommender:
+class MovieRecommender(cmd.Cmd):
     """
-    Will be used to store a data preprocessor and a TensorFlow model.
-    Should be serializable for reuse.
-    Should allow command-line interaction (possible queries: Random movie I could like, predicted top X, predict rating
-        for given movie etc.)
+    An interactive movie recommender system which learns the user's preferences.
     """
     def __init__(self):
-        # Read TensorFlow model from file if provided
-        raise NotImplementedError()
+        cmd.Cmd.__init__(self)
+        self.movie_info = None
+        self.db_connector = None
+        self.data_preprocessor = None
+        self.classifier = None
 
-    def classify(self, title):
-        """
-        Rate a single IMDB movie (classify into one of ten categories).
-        :return: The predicted rating (between 1 and 10 (inclusive))
-        """
-        raise NotImplementedError()
-
-
-def train(update, database_backend="tmdb", labelled_movies_filepath=None, movie_info_filepath=None):
-    # Get movie information (title, year, cast, director, ...)
-    if movie_info_filepath:
-        with open(movie_info_filepath) as movie_info_file:
-            movie_info = pd.DataFrame(json.load(movie_info_file))
-    else:
-        if database_backend == "imdb":
-            db_connector = imdb_connector.IMDbConnector(labelled_movies_filepath)
+    def do_train(self, line):
+        """Train the model."""
+        use_input_file = raw_input("Would you like me to load the movie metadata from a file? [y|N]")
+        if use_input_file.lower() in ["y", "yes"]:
+            self.movie_info = self.__load_movie_info_from_file()
         else:
-            db_connector = tmdb_connector.TMDbConnector(os.path.join(RESOURCES_DIR, "credentials.json"))
-        movie_info = db_connector.movie_info()
-        with open(os.path.join(RESOURCES_DIR, "movie_info.json"), "w+") as dump_file:
+            self.db_connector = self.__get_db_connector()
+            if self.db_connector is None:
+                return
+            self.movie_info = self.db_connector.movie_info()
+        if self.movie_info is None:
+            print("Loading movie metadata failed.")
+            return
+        print("Movie info loaded.")
+        dump_movie_info = raw_input("Would you like me to save the gathered movie information to a file for future use? [Y|n]")
+        if dump_movie_info.lower() in ["", "y", "yes"]:
+           self.__dump_movie_info(self.movie_info)
+        self.data_preprocessor = DataPreprocessor(self.movie_info)
+        encoded = pd.DataFrame(self.movie_info.apply(self.data_preprocessor.encode, axis=1).tolist())
+        df_train, df_test = train_test_split(encoded, test_size=0.1)
+        self.classifier = DNN()
+        self.classifier.train(df_train, df_test)
+
+    def do_update(self, line):
+        """Update the model."""
+        pass
+
+    def do_predict(self, line):
+        """Predict a rating for a movie."""
+        pass
+
+    @staticmethod
+    def __get_db_connector():
+        """
+        Prompt the user for his/her preferred database backend.
+        :return: The database connector on success, None on failure
+        """
+        inp = raw_input("Which database backend would you like to use? Available: tmdb | imdb [tmdb]")
+        if inp.lower() in ["", "tmdb"]:
+            filepath = raw_input("Path to JSON-formatted credentials file with entries 'api_key', 'username', 'password':")
+            if not (os.path.exists(filepath) and os.path.isfile(filepath)):
+                print("File {} does not exist".format(filepath))
+                return None
+            return tmdb_connector.TMDbConnector(filepath)
+        elif inp.lower() == "imdb":
+            filepath = raw_input("Path to CSV-formatted input file with IMDb IDs and movie ratings:")
+            if not (os.path.exists(filepath) and os.path.isfile(filepath)):
+                print("File {} does not exist".format(filepath))
+                return None
+            return imdb_connector.IMDbConnector(filepath)
+        else:
+            print("Invalid input: {}".format(inp))
+            return None
+
+    @staticmethod
+    def __load_movie_info_from_file():
+        filename = raw_input("Path to JSON-formatted input file:")
+        if not(os.path.exists(filename) and os.path.isfile(filename)):
+            print("File {} does not exist".format(filename))
+            return None
+        try:
+            with open(filename) as movie_info_file:
+                return pd.DataFrame(json.load(movie_info_file))
+        except Exception as e:
+            print("Could not read input file")
+            return None
+
+    @staticmethod
+    def __dump_movie_info(movie_info):
+        filename = os.path.join(RESOURCES_DIR, "movie_info.json")
+        res = raw_input("Shall I save the movie information to {}? [Y|n]".format(filename))
+        if res.lower() in ["n", "no"]:
+            filename = raw_input("Alternate file path:")
+        with open(filename, "w+") as dump_file:
             movie_info.to_json(dump_file)
-
-    # TODO: Train TensorFlow model
-    data_preprocessor = DataPreprocessor(movie_info)
-    encoded = pd.DataFrame(movie_info.apply(data_preprocessor.encode, axis=1).tolist())
-    df_train, df_test = train_test_split(encoded, test_size=0.1)
-    dnn = DNN()
-    dnn.train(df_train, df_test)
-    # TODO: Start interactive MovieRecommender session
-
-
-def classify():
-    raise NotImplementedError()
-
-
-def main(args):
-    if args.command == "train":
-        database = "imdb" if args.db == "imdb" else "tmdb"
-        train(args.update, database, args.imdb_ratings, args.load_file)
-    elif args.command == "classify":
-        classify()
-    else:
-        raise Exception("Unknown command: {}".format(args.command))
+        print("Movie information saved.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A movie recommendation system")
-    parser.add_argument("command", type=str, help="train|classify")
-    parser.add_argument("--update", action="store_true", help="Update the model with additional data.")
-    parser.add_argument("--db", type=str, help="imdb|tmdb")
-    parser.add_argument("--imdb_ratings", type=str, help="Path to CSV file containing movie titles and ratings (for IMDb "
-                                                       "connector only).")
-    parser.add_argument("--load_file", type=str, help="Path to JSON-formatted file containing movie information. If "
-                                                      "this argument is provided, the movie information will not be "
-                                                      "fetched from the db, but read from the given file.")
-    parser.add_argument("--recent", action="store_true")
-    main(parser.parse_args())
+    MovieRecommender().cmdloop(intro="""A machine learning-powered movie recommendation system.
+    Available commands: train | update | predict""")
