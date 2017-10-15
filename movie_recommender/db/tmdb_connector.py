@@ -16,11 +16,21 @@ class TMDbConnector(object):
         """
         with open(credentials_filepath) as credentials_file:
             self.credentials = json.load(credentials_file)
+        self.authenticate()
+        genres_list = tmdb.Genres().list()
+        self.genres = {}
+        for entry in genres_list["genres"]:
+            self.genres[entry["id"]] = entry["name"]
+
+        print("Done.")
+
+    def authenticate(self):
         print("Connecting to TMDb db...")
         tmdb.API_KEY = self.credentials["api_key"]
         auth = tmdb.Authentication()
         request_token = auth.token_new()["request_token"]
-        res = auth.token_validate_with_login(request_token=request_token, username=self.credentials["username"], password=self.credentials["password"])
+        res = auth.token_validate_with_login(request_token=request_token, username=self.credentials["username"],
+                                             password=self.credentials["password"])
         if not res["success"]:
             raise RuntimeError("TMDb authentication failed")
         res = auth.session_new(request_token=request_token)
@@ -29,16 +39,9 @@ class TMDbConnector(object):
         self.account = tmdb.Account(session_id=res["session_id"])
         self.account.info()
 
-        genres_list = tmdb.Genres().list()
-        self.genres = {}
-        for entry in genres_list["genres"]:
-            self.genres[entry["id"]] = entry["name"]
-
-        print("Done.")
-
     def movie_info(self):
         """
-        Get relevant information about the set of rated movies.
+        Get relevant information about the set of rated movies. Fetches the set of rated movies from the TMDb account.
         :return: A DataFrame containing information (such as genres, director, year...) about the movie.
         """
         print("Fetching movie info...")
@@ -48,7 +51,7 @@ class TMDbConnector(object):
         count = 0
         for i in range(rated_movies["total_pages"]):
             for movie in rated_movies["results"]:
-                res.append(self.extract_movie_info(movie))
+                res.append(self.__extract_movie_info(movie))
                 bar.update(count)
                 count += 1
             current_page = rated_movies["page"]
@@ -56,7 +59,35 @@ class TMDbConnector(object):
                 rated_movies = self.account.rated_movies(page=current_page+1)
         return pd.DataFrame(res)
 
-    def extract_movie_info(self, movie):
+    def movie_info_from_id(self, movie_id):
+        """
+        Get relevant information about a given movie. (Returns a row of the dataframe returned by the other movie_info
+        function, except for without the rating column (as the movie has not necessarily been rated yet)
+        :param movie_id: An integer TMDB movie ID.
+        :return:
+        """
+        movie = tmdb.Movies(movie_id)
+        response = movie.info()
+        movie_dict = {
+            "title": movie.title,
+            "genres": [entry["name"] for entry in movie.genres],
+            "average_rating": movie.vote_average,
+            "year": int(movie.release_date[:4]),
+            "cast": [],
+            "director": "",
+            "producer": "",
+            "composer": "",
+            "writer": ""
+        }
+        return self.__add_cast_and_crew(movie_id, movie_dict)
+
+    @staticmethod
+    def __extract_movie_info(movie):
+        """
+        Fill a dictionary object with information about a movie.
+        :param movie:
+        :return:
+        """
         movie_dict = {
             "title": movie["title"],
             "rating": movie["rating"],
@@ -69,7 +100,11 @@ class TMDbConnector(object):
             "composer": "",
             "writer": ""
         }
-        credits = tmdb.Movies(movie["id"]).credits()
+        return TMDbConnector.__add_cast_and_crew(movie["id"], movie_dict)
+
+    @staticmethod
+    def __add_cast_and_crew(movie_id, movie_dict):
+        credits = tmdb.Movies(movie_id).credits()
         cast = credits["cast"]
         if len(cast) > 5:
             cast = cast[:5]
@@ -87,3 +122,9 @@ class TMDbConnector(object):
             elif job in ["Writer", "Novel"] and movie_dict["writer"] == "":
                 movie_dict["writer"] = crew_member["name"]
         return movie_dict
+
+    @staticmethod
+    def movie_list(movie_title):
+        search = tmdb.Search()
+        response = search.movie(query=movie_title)
+        return search.results

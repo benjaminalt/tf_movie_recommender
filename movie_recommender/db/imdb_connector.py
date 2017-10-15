@@ -42,3 +42,6 @@ class IMDbConnector(object):
             }
             res.append(movie_dict)
         return pd.DataFrame(res)
+
+    def movie_list(self, movie_title):
+        raise NotImplementedError("Not yet implemented for IMDb connector: Use TMDb connector instead")

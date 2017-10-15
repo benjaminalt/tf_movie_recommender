@@ -10,14 +10,16 @@ if not os.path.isdir(TRAINING_DATA_DIR):
 TMP_MODEL_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "model_tmp")
 if not os.path.isdir(TMP_MODEL_DIR):
     os.makedirs(TMP_MODEL_DIR)
+HIDDEN_UNITS = [10, 20, 10]
 
 
 class DNN(object):
-    def __init__(self, model_dir=None):
+    def __init__(self, feature_columns=None, model_dir=None):
         self.classifier = None
+        self.feature_columns = feature_columns
         if model_dir is not None:
             print("Restoring classifier from {}".format(model_dir))
-            self.classifier = tf.contrib.learn.DNNClassifier(model_dir=model_dir)
+            self.classifier = tf.contrib.learn.DNNClassifier(hidden_units=HIDDEN_UNITS, feature_columns=self.feature_columns, model_dir=model_dir)
 
     def train(self, training_data, test_data):
         """
@@ -43,7 +45,7 @@ class DNN(object):
         self.clean_directory(TMP_MODEL_DIR)
         self.classifier = tf.estimator.DNNClassifier(
             feature_columns=feature_columns,
-            hidden_units=[10, 20, 10],
+            hidden_units=HIDDEN_UNITS,
             n_classes=10,
             model_dir=TMP_MODEL_DIR
         )
@@ -80,6 +82,10 @@ class DNN(object):
         actual_classes = test_data["rating"].tolist()
         mse = sum([(int(actual_classes[i])-int(predicted_classes[i]))**2 for i in range(len(actual_classes))])/len(actual_classes)
         print("\nTest Root MSE: {}\n".format(math.sqrt(mse)))
+
+    def predict(self, encoded_input):
+        
+        pass
 
     @staticmethod
     def clean_directory(dir):

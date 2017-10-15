@@ -160,3 +160,4 @@ fabric.properties
 /training_data/
 /resources/
 /model_tmp/
+/archive_dir/
