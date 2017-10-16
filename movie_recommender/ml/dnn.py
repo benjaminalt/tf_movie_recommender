@@ -19,7 +19,7 @@ class DNN(object):
         self.feature_columns = feature_columns
         if model_dir is not None:
             print("Restoring classifier from {}".format(model_dir))
-            self.classifier = tf.contrib.learn.DNNClassifier(hidden_units=HIDDEN_UNITS, feature_columns=self.feature_columns, model_dir=model_dir)
+            self.classifier = tf.estimator.DNNClassifier(hidden_units=HIDDEN_UNITS, feature_columns=self.feature_columns, model_dir=model_dir)
 
     def train(self, training_data, test_data):
         """
@@ -50,16 +50,6 @@ class DNN(object):
             model_dir=TMP_MODEL_DIR
         )
 
-        def get_test_inputs():
-            x = tf.constant(test_set.data)
-            y = tf.constant(test_set.target)
-            return x, y
-
-        def get_train_inputs():
-            x = tf.constant(training_set.data)
-            y = tf.constant(training_set.target)
-            return x, y
-
         train_input_fn = tf.estimator.inputs.numpy_input_fn(
             x={"x": np.array(training_set.data)},
             y=np.array(training_set.target),
@@ -84,8 +74,29 @@ class DNN(object):
         print("\nTest Root MSE: {}\n".format(math.sqrt(mse)))
 
     def predict(self, encoded_input):
-        
-        pass
+        target_column = encoded_input.columns.get_loc("rating")
+        num_entries = encoded_input.shape[0]
+        num_features = encoded_input.shape[1] - 1
+        encoded_input.to_csv(os.path.join(TRAINING_DATA_DIR, 'input_tmp.csv'), index=False)
+        input_data_path = os.path.join(TRAINING_DATA_DIR, "input.csv")
+        open(input_data_path, "w+").write(str(num_entries) +
+                                             "," + str(num_features) +
+                                             "," + open(os.path.join(TRAINING_DATA_DIR, "input_tmp.csv")).read())
+        input_set = tf.contrib.learn.datasets.base.load_csv_with_header(
+            filename=input_data_path,
+            target_dtype=np.int,
+            features_dtype=np.float,
+            target_column=target_column
+        )
+        predict_input_fn = tf.estimator.inputs.numpy_input_fn(
+            x={"x": np.array(input_set.data)},
+            num_epochs=1,
+            shuffle=False
+        )
+        predictions = self.classifier.predict(input_fn=predict_input_fn)
+        predicted_classes = [int(p["classes"][0]) for p in predictions]
+        return predicted_classes[0]
+
 
     @staticmethod
     def clean_directory(dir):

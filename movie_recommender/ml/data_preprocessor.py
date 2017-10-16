@@ -42,6 +42,8 @@ class DataPreprocessor(object):
         }
         if "rating" in movie.keys(): # Not necessary for "predict" input data (which does not have a rating yet)
             encoded["rating"] = int(movie["rating"]) - 1  # Do not normalize the rating, as it serves as a class label and must be integer-valued (for 10 classes, between 0 and 9)
+        else:
+            encoded["rating"] = 0
         for actor in self.known_values["actor"]:
             normalized = self.normalize_categorical(actor)
             encoded["actor_{}".format(normalized)] = 1 if actor in movie["cast"] else 0
@@ -53,9 +55,6 @@ class DataPreprocessor(object):
                 normalized = self.normalize_categorical(item)
                 encoded["{}_{}".format(category, normalized)] = 1 if item in movie[category] else 0
         return encoded
-
-    def make_feature_vector(self, movie):
-        pass
 
     def make_one_hot_encoding(self, movie_info):
         encoded = {
