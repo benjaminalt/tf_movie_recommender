@@ -161,3 +161,4 @@ fabric.properties
 /resources/
 /model_tmp/
 /archive_dir/
+/archive.tar.gz

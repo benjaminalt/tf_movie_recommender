@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/movie_recommender.iml" filepath="$PROJECT_DIR$/.idea/movie_recommender.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/tf_movie_recommender.iml" filepath="$PROJECT_DIR$/.idea/tf_movie_recommender.iml" />
     </modules>
   </component>
 </project>

@@ -106,7 +106,9 @@ class MovieRecommender(cmd.Cmd):
             return
         movie_info = self.__get_movie()
         encoded = self.data_preprocessor.encode(movie_info)
-        predicted_rating = self.classifier.predict(encoded)
+        encoded_df = pd.DataFrame([encoded])
+        predicted_rating = self.classifier.predict(encoded_df)
+        print("Predicted rating: {}".format(predicted_rating))
 
     def do_exit(self, line):
         return True
@@ -184,4 +186,4 @@ class MovieRecommender(cmd.Cmd):
 
 if __name__ == "__main__":
     MovieRecommender().cmdloop(intro="""A machine learning-powered movie recommendation system.
-    Available commands: train | update | predict | save | load | exit""")
+    Available commands: train | predict | save | load | exit""")
