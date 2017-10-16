@@ -1,4 +1,5 @@
-#tf_movie_recommender (alpha)
+# tf_movie_recommender (alpha)
+
 A machine learning-based movie recommendation system built with [TensorFlow](https://www.tensorflow.org/).
 It uses a deep neural network to learn the user's movie preferences and predicts ratings for movies the user has not yet seen.
 
